@@ -8,7 +8,7 @@ st.title("📊 HELB Service Delivery Analysis")
 # Option 1: Load file directly from GitHub (static)
 @st.cache_data
 def load_data():
-    url = "Issues Influencing Excellent Service Delivery(1-45).xlsx"
+    url = "Issues Influencing Excellent Service Delivery.xlsx"
     return pd.read_excel(url)
 
 try:
