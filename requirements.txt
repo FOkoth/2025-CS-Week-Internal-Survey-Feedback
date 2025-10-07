@@ -13,3 +13,4 @@ openpyxl
 wordcloud
 plotly
 scikit-learn
+textblob
