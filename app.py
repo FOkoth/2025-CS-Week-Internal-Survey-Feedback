@@ -14,7 +14,7 @@ def load_data():
 try:
     df = load_data()
     st.success("✅ Data loaded successfully from GitHub!")
-    st.dataframe(df.all())
+    st.dataframe(df.head())
 except Exception as e:
     st.error(f"❌ Failed to load data: {e}")
 
