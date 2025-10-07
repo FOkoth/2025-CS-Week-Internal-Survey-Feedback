@@ -13,7 +13,7 @@ st.title("💬 HELB Service Delivery – Comments & Insights")
 # --- Load data ---
 @st.cache_data
 def load_data():
-    url = "https://raw.githubusercontent.com/YOUR_USERNAME/helb-service-delivery-analysis/main/data/Issues%20Influencing%20Excellent%20Service%20Delivery.xlsx"
+    url = "Issues Influencing Excellent Service Delivery.xlsx"
     return pd.read_excel(url)
 
 try:
