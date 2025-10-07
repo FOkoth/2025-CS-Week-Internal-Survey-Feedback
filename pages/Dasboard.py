@@ -9,7 +9,7 @@ import plotly.express as px
 # =============================
 st.set_page_config(page_title="HELB Service Delivery Dashboard", layout="wide")
 
-# Apply custom color styling
+# Apply custom styling
 st.markdown("""
     <style>
     .main {
@@ -18,16 +18,9 @@ st.markdown("""
     h1, h2, h3, h4 {
         color: #002147;
     }
-    .metric-card {
-        background-color: #F5F5F5;
-        padding: 1rem;
-        border-radius: 10px;
-        text-align: center;
-        border: 2px solid #008000;
-    }
     .stMetric {
         background-color: #FFFFFF !important;
-        border-left: 4px solid #FFD700;
+        border-left: 4px solid #008000;
         padding: 10px;
         border-radius: 8px;
     }
@@ -39,14 +32,25 @@ st.markdown("""
 # =============================
 @st.cache_data
 def load_data():
-    # Change to your raw GitHub Excel URL if not using local file
     url = "Issues Influencing Excellent Service Delivery(1-45).xlsx"
-    return pd.read_excel(url)
+    df = pd.read_excel(url)
+
+    # Rename columns to shorter logical names
+    rename_map = {
+        "In your view, what are the top three issues that enable staff to deliver excellent service to both internal and external customers?": "Top_Issues",
+        "How well do our current internal processes and systems support timely and effective customer service?": "Processes_Systems",
+        "To what extent does the leadership communication and support influence your ability to deliver effective service to the customers?": "Leadership_Influence",
+        "If you were to make a change, what is the one thing you would do to ascertain excellent service delivery?": "Change_Idea",
+        "If you had an opportunity to ask the CEO and Top Management two major questions, what would they be? Please list the two questions:": "Questions_to_CEO"
+    }
+
+    df = df.rename(columns=rename_map)
+    return df
 
 df = load_data()
 
 # =============================
-# PAGE HEADER
+# HEADER
 # =============================
 st.title("📊 HELB Service Delivery Dashboard")
 st.markdown(
@@ -55,87 +59,63 @@ st.markdown(
 )
 
 # =============================
-# METRIC CARDS
+# METRICS
 # =============================
 col1, col2, col3 = st.columns(3)
+st.markdown("### 📈 Survey Overview")
 
 with col1:
     st.metric("Total Responses", len(df))
 with col2:
-    st.metric("Unique Departments", df["Department"].nunique() if "Department" in df.columns else "N/A")
+    st.metric("Questions Analyzed", len(df.columns))
 with col3:
-    st.metric("Unique Respondents", df["Respondent ID"].nunique() if "Respondent ID" in df.columns else "N/A")
+    st.metric("Unique Text Entries", df.apply(lambda x: x.notna().sum()).sum())
 
 st.divider()
 
 # =============================
-# CHARTS
+# WORD CLOUDS PER QUESTION
 # =============================
 
-# Example categorical breakdown (department or rating)
-if "Department" in df.columns:
-    st.subheader("📈 Responses by Department")
-    dept_counts = df["Department"].value_counts().reset_index()
-    dept_counts.columns = ["Department", "Count"]
-    fig = px.bar(
-        dept_counts,
-        x="Department",
-        y="Count",
-        color="Department",
-        color_discrete_sequence=["#008000", "#FFD700", "#002147", "#006400", "#DAA520"],
-        title="Responses by Department"
-    )
-    st.plotly_chart(fig, use_container_width=True)
+st.subheader("☁️ Key Themes from Responses")
 
-st.divider()
+text_columns = [
+    "Top_Issues",
+    "Processes_Systems",
+    "Leadership_Influence",
+    "Change_Idea",
+    "Questions_to_CEO"
+]
 
-# =============================
-# SENTIMENT VISUALIZATION
-# =============================
-if "Sentiment" in df.columns:
-    st.subheader("😊 Sentiment Distribution")
-    fig2 = px.pie(
-        df,
-        names="Sentiment",
-        color="Sentiment",
-        color_discrete_map={
-            "Positive": "#008000",
-            "Neutral": "#FFD700",
-            "Negative": "#002147"
-        },
-        title="Overall Sentiment from Comments"
-    )
-    st.plotly_chart(fig2, use_container_width=True)
+for col in text_columns:
+    if col in df.columns:
+        st.markdown(f"#### {col.replace('_', ' ')}")
+        text = " ".join(str(t) for t in df[col].dropna())
+        if len(text.strip()) > 0:
+            wordcloud = WordCloud(
+                width=900,
+                height=400,
+                background_color="white",
+                colormap="Dark2"
+            ).generate(text)
+            fig, ax = plt.subplots(figsize=(10, 4))
+            ax.imshow(wordcloud, interpolation="bilinear")
+            ax.axis("off")
+            st.pyplot(fig)
+        else:
+            st.info(f"No text available for {col}")
 
-st.divider()
+        st.divider()
 
 # =============================
-# WORD CLOUD
+# SENTIMENT PLACEHOLDER
 # =============================
-st.subheader("☁️ Commonly Used Words in Comments")
 
-# Determine the column containing text
-text_col = None
-for col in df.columns:
-    if "comment" in col.lower() or "feedback" in col.lower() or "issue" in col.lower():
-        text_col = col
-        break
-
-if text_col:
-    text = " ".join(str(i) for i in df[text_col].dropna())
-    wordcloud = WordCloud(width=900, height=400, background_color="white", colormap="Dark2").generate(text)
-
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.imshow(wordcloud, interpolation="bilinear")
-    ax.axis("off")
-    plt.title("Most Frequent Words in Survey Comments", color="#002147", fontsize=14)
-    st.pyplot(fig)
-else:
-    st.info("No text column found for word cloud generation.")
+st.subheader("😊 Sentiment Overview (Coming Next)")
+st.info("Sentiment analysis and clustering will be included in the Comments Analysis page.")
 
 # =============================
 # FOOTER
 # =============================
 st.markdown("---")
 st.caption("Dashboard colors: Green, Gold, White, and Dark Blue — aligned to HELB branding.")
-
