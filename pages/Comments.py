@@ -1,19 +1,53 @@
 import streamlit as st
 import pandas as pd
 from textblob import TextBlob
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.cluster import KMeans
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
+from collections import Counter
 
-st.set_page_config(page_title="Comments & Analysis", layout="wide")
-
+# -------------------------------
+# PAGE CONFIG
+# -------------------------------
+st.set_page_config(page_title="Comments & Insights", layout="wide")
 st.title("💬 HELB Service Delivery – Comments & Insights")
 
-# --- Load data ---
+# Apply custom color theme
+st.markdown(
+    """
+    <style>
+    body {
+        background-color: #f7fafc;
+    }
+    .stApp {
+        background-color: white;
+    }
+    h1, h2, h3 {
+        color: #003366; /* Dark Blue */
+    }
+    .stSuccess {
+        color: #006400; /* Green */
+    }
+    .stError {
+        color: #b22222; /* Red */
+    }
+    .stDownloadButton>button {
+        background-color: #006400 !important;
+        color: white !important;
+        border-radius: 10px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# -------------------------------
+# LOAD DATA
+# -------------------------------
 @st.cache_data
 def load_data():
-    url = "Issues Influencing Excellent Service Delivery.xlsx"
+    url = "https://raw.githubusercontent.com/YOUR_USERNAME/helb-service-delivery-analysis/main/data/Issues%20Influencing%20Excellent%20Service%20Delivery(1-45).xlsx"
     return pd.read_excel(url)
 
 try:
@@ -23,7 +57,7 @@ except Exception as e:
     st.error(f"❌ Failed to load data: {e}")
     st.stop()
 
-# --- Rename columns for simplicity ---
+# Rename columns for consistency
 df.columns = [
     "Enablers",
     "Internal_Systems",
@@ -32,7 +66,9 @@ df.columns = [
     "Questions_to_CEO"
 ]
 
-# --- Sentiment Analysis ---
+# -------------------------------
+# SENTIMENT ANALYSIS
+# -------------------------------
 def get_sentiment(text):
     if pd.isna(text) or str(text).strip() == "":
         return "Neutral"
@@ -46,7 +82,9 @@ def get_sentiment(text):
 
 df["Sentiment"] = df["Improvement_Idea"].apply(get_sentiment)
 
-# --- Categorize Questions (CEO / Management / General) ---
+# -------------------------------
+# CLASSIFY QUESTIONS
+# -------------------------------
 def classify_question(text):
     if pd.isna(text):
         return "General"
@@ -62,10 +100,12 @@ def classify_question(text):
 
 df["Question_Category"] = df["Questions_to_CEO"].apply(classify_question)
 
-# --- Text Clustering (Themes) ---
+# -------------------------------
+# CLUSTER THEMES
+# -------------------------------
 st.subheader("🔍 Theme Clustering (based on Enablers)")
-corpus = df["Enablers"].dropna().astype(str).tolist()
 
+corpus = df["Enablers"].dropna().astype(str).tolist()
 if len(corpus) > 0:
     vectorizer = TfidfVectorizer(stop_words="english")
     X = vectorizer.fit_transform(corpus)
@@ -77,19 +117,32 @@ if len(corpus) > 0:
     with col1:
         st.write("**Cluster Sample:**")
         st.dataframe(df[["Enablers", "Theme_Cluster"]].head(10))
-
     with col2:
-        cluster_counts = df["Theme_Cluster"].value_counts().sort_index()
-        st.bar_chart(cluster_counts)
+        st.bar_chart(df["Theme_Cluster"].value_counts().sort_index())
 else:
     st.info("No enabler text available for clustering.")
 
-# --- Word Cloud for All Comments ---
-st.subheader("☁️ Word Cloud – Common Terms")
-text_data = " ".join(df["Improvement_Idea"].dropna().astype(str))
-if text_data.strip():
-    wc = WordCloud(width=800, height=400, background_color="white",
-                   colormap="viridis").generate(text_data)
+# -------------------------------
+# WORD CLOUD (SMART PHRASE DETECTION)
+# -------------------------------
+st.subheader("☁️ Word Cloud – Common Terms & Phrases")
+
+text_series = df["Improvement_Idea"].dropna().astype(str)
+if not text_series.empty:
+    # Create bigrams and trigrams
+    vectorizer = CountVectorizer(ngram_range=(1, 3), stop_words="english").fit(text_series)
+    bag_of_words = vectorizer.transform(text_series)
+    sum_words = bag_of_words.sum(axis=0)
+    words_freq = [(word, sum_words[0, idx]) for word, idx in vectorizer.vocabulary_.items()]
+    sorted_words = sorted(words_freq, key=lambda x: x[1], reverse=True)
+    word_freq_dict = dict(sorted_words[:100])  # top 100 phrases
+
+    wc = WordCloud(
+        width=900, height=450,
+        background_color="white",
+        colormap="viridis"
+    ).generate_from_frequencies(word_freq_dict)
+
     fig, ax = plt.subplots()
     ax.imshow(wc, interpolation="bilinear")
     ax.axis("off")
@@ -97,13 +150,18 @@ if text_data.strip():
 else:
     st.info("No text available for generating word cloud.")
 
-# --- Sentiment Summary ---
+# -------------------------------
+# SENTIMENT SUMMARY
+# -------------------------------
 st.subheader("📊 Sentiment Distribution")
 sent_counts = df["Sentiment"].value_counts()
 st.bar_chart(sent_counts)
 
-# --- View and Filter Comments ---
+# -------------------------------
+# FILTER & VIEW COMMENTS
+# -------------------------------
 st.subheader("🗒️ Explore Individual Comments")
+
 sentiment_filter = st.selectbox("Filter by Sentiment", ["All", "Positive", "Neutral", "Negative"])
 category_filter = st.selectbox("Filter by Question Category", ["All", "CEO", "Management", "General"])
 
@@ -115,9 +173,11 @@ if category_filter != "All":
 
 st.dataframe(filtered[["Improvement_Idea", "Sentiment", "Questions_to_CEO", "Question_Category"]])
 
-# --- Download Option ---
+# -------------------------------
+# DOWNLOAD BUTTON
+# -------------------------------
 st.download_button(
-    label="📥 Download Full Analysis (Excel)",
+    label="📥 Download Full Analysis (CSV)",
     data=df.to_csv(index=False).encode("utf-8"),
     file_name="HELB_Service_Delivery_Analysis.csv",
     mime="text/csv"
