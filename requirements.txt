@@ -5,3 +5,11 @@ matplotlib
 wordcloud
 scikit-learn
 vaderSentiment
+
+streamlit
+pandas
+matplotlib
+openpyxl
+wordcloud
+plotly
+scikit-learn
