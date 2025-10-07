@@ -32,7 +32,7 @@ st.markdown("""
 # =============================
 @st.cache_data
 def load_data():
-    url = "Issues Influencing Excellent Service Delivery(1-45).xlsx"
+    url = "Issues Influencing Excellent Service Delivery.xlsx"
     df = pd.read_excel(url)
 
     # Rename columns to shorter logical names
